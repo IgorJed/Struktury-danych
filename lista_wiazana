@@ -1,0 +1,137 @@
+#include <iostream>
+#include <chrono>
+#include <vector>
+#include <cstdlib>
+#include <iomanip>
+using namespace std;
+using namespace chrono;
+
+struct Node {
+    int value, priority;
+    Node* next;
+};
+
+class PriorityQueueList {
+    Node* head;
+    int size;
+
+public:
+    PriorityQueueList() : head(nullptr), size(0) {}
+
+    void push(int val, int prio) {
+        Node* n = new Node{val, prio, nullptr};
+
+        if (!head || prio < head->priority) {
+            n->next = head;
+            head = n;
+        } else {
+            Node* t = head;
+            while (t->next && t->next->priority <= prio)
+                t = t->next;
+
+            n->next = t->next;
+            t->next = n;
+        }
+        size++;
+    }
+
+    void pop() {
+        if (!head) return;
+        Node* t = head;
+        head = head->next;
+        delete t;
+        size--;
+    }
+
+    int peek() { return head ? head->value : -1; }
+    int getSize() { return size; }
+
+    void changePriority(int val, int prio) {
+        Node *prev=nullptr, *cur=head;
+
+        while (cur && cur->value != val) {
+            prev = cur;
+            cur = cur->next;
+        }
+        if (!cur) return;
+
+        if (prev) prev->next = cur->next;
+        else head = cur->next;
+
+        size--;
+        push(val, prio);
+        delete cur;
+    }
+};
+
+void test(int N) {
+    PriorityQueueList pq;
+
+    vector<int> vals(N), pr(N);
+    for (int i = 0; i < N; i++) {
+        vals[i] = i;
+        pr[i] = rand() % 1000;
+        pq.push(vals[i], pr[i]);
+    }
+
+    volatile int dummy = 0;
+
+    auto t1 = high_resolution_clock::now();
+    for (int i = 0; i < N; i++)
+        pq.push(i + N, rand() % 1000);
+    auto t2 = high_resolution_clock::now();
+
+    auto t3 = high_resolution_clock::now();
+    for (int i = 0; i < N; i++)
+        pq.pop();
+    auto t4 = high_resolution_clock::now();
+
+    auto t5 = high_resolution_clock::now();
+    for (int i = 0; i < 100000; i++)
+        dummy += pq.peek();
+    auto t6 = high_resolution_clock::now();
+
+    auto t7 = high_resolution_clock::now();
+    for (int i = 0; i < 100000; i++)
+        dummy += pq.getSize();
+    auto t8 = high_resolution_clock::now();
+
+    auto t9 = high_resolution_clock::now();
+    for (int i = 0; i < 5000; i++)
+        pq.changePriority(rand() % N, rand() % 1000);
+    auto t10 = high_resolution_clock::now();
+
+    double push_time = duration_cast<nanoseconds>(t2 - t1).count() / (double)N;
+    double pop_time = duration_cast<nanoseconds>(t4 - t3).count() / (double)N;
+    double peek_time = duration_cast<nanoseconds>(t6 - t5).count() / 100000.0;
+    double size_time = duration_cast<nanoseconds>(t8 - t7).count() / 100000.0;
+    double change_time = duration_cast<nanoseconds>(t10 - t9).count() / 5000.0;
+
+    cout << left
+         << setw(10) << N
+         << setw(15) << push_time
+         << setw(15) << pop_time
+         << setw(15) << peek_time
+         << setw(15) << size_time
+         << setw(20) << change_time
+         << "\n";
+}
+
+int main() {
+    vector<int> tests = {100,1000,5000,10000,50000};
+
+    cout << "=== LISTA WIAZANA ===\n";
+    cout << left
+         << setw(10) << "N"
+         << setw(15) << "Push(ns)"
+         << setw(15) << "Pop(ns)"
+         << setw(15) << "Peek(ns)"
+         << setw(15) << "Size(ns)"
+         << setw(20) << "Change(ns)"
+         << "\n";
+
+    cout << string(90, '-') << "\n";
+
+    for (int n : tests)
+        test(n);
+}
