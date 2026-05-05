@@ -1,0 +1,175 @@
+#include <iostream>
+#include <chrono>
+#include <vector>
+#include <unordered_map>
+#include <cstdlib>
+#include <iomanip>
+using namespace std;
+using namespace chrono;
+
+struct Element {
+    int value, priority;
+};
+
+class PriorityQueueHeap {
+    vector<Element> heap;
+    unordered_map<int,int> pos;
+
+    void swapNodes(int a, int b) {
+        swap(heap[a], heap[b]);
+        pos[heap[a].value] = a;
+        pos[heap[b].value] = b;
+    }
+
+    void heapifyUp(int i) {
+        while (i > 0 && heap[(i-1)/2].priority > heap[i].priority) {
+            swapNodes(i, (i-1)/2);
+            i = (i-1)/2;
+        }
+    }
+
+    void heapifyDown(int i) {
+        int s = i;
+        int l = 2*i+1, r = 2*i+2;
+
+        if (l < (int)heap.size() && heap[l].priority < heap[s].priority) s = l;
+        if (r < (int)heap.size() && heap[r].priority < heap[s].priority) s = r;
+
+        if (s != i) {
+            swapNodes(i, s);
+            heapifyDown(s);
+        }
+    }
+
+public:
+    void push(int v, int p) {
+        heap.push_back({v, p});
+        pos[v] = heap.size() - 1;
+        heapifyUp(heap.size() - 1);
+    }
+
+    void pop() {
+        if (heap.empty()) return;
+
+        pos.erase(heap[0].value);
+
+        heap[0] = heap.back();
+        heap.pop_back();
+
+        if (!heap.empty()) {
+            pos[heap[0].value] = 0;
+            heapifyDown(0);
+        }
+    }
+
+    int peek() { return heap.empty() ? -1 : heap[0].value; }
+    int getSize() { return heap.size(); }
+
+    void changePriority(int v, int p) {
+        if (!pos.count(v)) return;
+
+        int i = pos[v];
+        int old = heap[i].priority;
+        heap[i].priority = p;
+
+        if (p < old) heapifyUp(i);
+        else heapifyDown(i);
+    }
+};
+
+// buduje tablice od nowa
+PriorityQueueHeap buildHeap(int N) {
+    PriorityQueueHeap pq;
+    for (int i = 0; i < N; i++)
+        pq.push(i, rand() % 1000);
+    return pq;
+}
+
+void test(int N) {
+
+    volatile int dummy = 0;
+    int OPS = max(100000, N * 50);
+
+    // PUSH (na pustym kopcu)
+    {
+        PriorityQueueHeap pq;
+        auto t1 = high_resolution_clock::now();
+        for (int i = 0; i < OPS; i++)
+            pq.push(i, rand() % 1000);
+        auto t2 = high_resolution_clock::now();
+
+        cout << setw(15)
+             << duration_cast<nanoseconds>(t2 - t1).count() / (double)OPS;
+    }
+
+    // POP (na pełnym kopcu)
+    {
+        PriorityQueueHeap pq = buildHeap(OPS);
+        auto t1 = high_resolution_clock::now();
+        for (int i = 0; i < OPS; i++)
+            pq.pop();
+        auto t2 = high_resolution_clock::now();
+
+        cout << setw(15)
+             << duration_cast<nanoseconds>(t2 - t1).count() / (double)OPS;
+    }
+
+    // PEEK
+    {
+        PriorityQueueHeap pq = buildHeap(N);
+        auto t1 = high_resolution_clock::now();
+        for (int i = 0; i < 500000; i++)
+            dummy += pq.peek();
+        auto t2 = high_resolution_clock::now();
+
+        cout << setw(15)
+             << duration_cast<nanoseconds>(t2 - t1).count() / 500000.0;
+    }
+
+    // SIZE
+    {
+        PriorityQueueHeap pq = buildHeap(N);
+        auto t1 = high_resolution_clock::now();
+        for (int i = 0; i < 500000; i++)
+            dummy += pq.getSize();
+        auto t2 = high_resolution_clock::now();
+
+        cout << setw(15)
+             << duration_cast<nanoseconds>(t2 - t1).count() / 500000.0;
+    }
+
+    // CHANGE PRIORITY
+    {
+        PriorityQueueHeap pq = buildHeap(N);
+        auto t1 = high_resolution_clock::now();
+        for (int i = 0; i < OPS; i++)
+            pq.changePriority(rand() % N, rand() % 1000);
+        auto t2 = high_resolution_clock::now();
+
+        cout << setw(20)
+             << duration_cast<nanoseconds>(t2 - t1).count() / (double)OPS;
+    }
+
+    cout << "\n";
+}
+
+int main() {
+    vector<int> tests = {100, 1000, 5000, 10000, 50000};
+
+    cout << "=== KOPIEC (TABLICA) - FINAL ===\n";
+    cout << left
+         << setw(10) << "N"
+         << setw(15) << "Push(ns)"
+         << setw(15) << "Pop(ns)"
+         << setw(15) << "Peek(ns)"
+         << setw(15) << "Size(ns)"
+         << setw(20) << "Change(ns)"
+         << "\n";
+
+    cout << string(90, '-') << "\n";
+
+    for (int n : tests) {
+        cout << setw(10) << n;
+        test(n);
+    }
+}
